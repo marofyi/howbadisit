@@ -346,6 +346,8 @@
 				display: flex;
 				justify-content: space-between;
 				align-items: baseline;
+				flex-wrap: wrap;
+				gap: 0.15rem;
 			}
 
 			.diagnosis-title {
@@ -353,11 +355,28 @@
 				color: var(--muted);
 				text-transform: uppercase;
 				letter-spacing: 2px;
+				width: 100%;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.diagnosis-title .report-name {
+				color: var(--text-bright);
+			}
+
+			.diagnosis-assessment {
+				font-size: 11px;
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 1.5px;
+				opacity: 0.7;
 			}
 
 			.diagnosis-date {
 				font-size: 13px;
 				color: var(--muted);
+				margin-left: auto;
 			}
 
 			.severity-meter {
@@ -539,6 +558,34 @@
 				display: block;
 			}
 
+			.name-field {
+				margin-bottom: 1.5rem;
+			}
+
+			.name-field label {
+				display: block;
+				color: var(--text-bright);
+				font-size: 13px;
+				margin-bottom: 0.5rem;
+			}
+
+			.name-field input[type="text"] {
+				background: var(--bg-card);
+				border: 1px solid #2a2a2a;
+				color: var(--text-bright);
+				font-family: var(--font);
+				font-size: 13px;
+				padding: 0.4rem 0.6rem;
+				border-radius: 4px;
+				width: 100%;
+				max-width: 280px;
+			}
+
+			.name-field input[type="text"]:focus {
+				outline: none;
+				border-color: var(--green-dim);
+			}
+
 			.interview-question {
 				margin-bottom: 1.5rem;
 				opacity: 0;
@@ -697,6 +744,11 @@
 			<!-- Landing -->
 			<div id="landing">
 				<div class="ascii-title" id="ascii-title">how bad is it?<span class="cursor title-cursor"></span></div>
+				<div class="name-field">
+					<label>your name <span class="q-hint">(optional)</span></label>
+					<input type="text" id="q-name" placeholder="anonymous" autocomplete="off" />
+				</div>
+
 				<div class="mode-toggle">
 					<button class="mode-btn active" data-mode="drop" onclick="switchMode('drop')">Claude Code</button>
 					<button class="mode-btn" data-mode="interview" onclick="switchMode('interview')">Other Computer Agents</button>
@@ -1345,6 +1397,14 @@
 			// DIAGNOSIS CARD
 			// ============================================================
 
+			function getReportName() {
+				const nameInput = document.getElementById('q-name');
+				const val = nameInput ? nameInput.value.trim() : '';
+				if (val) return val;
+				if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA.reportName) return EMBEDDED_DATA.reportName;
+				return 'anonymous';
+			}
+
 			function buildDiagnosisCard(data) {
 				const card = document.createElement('div');
 				card.className = 'diagnosis-card';
@@ -1353,6 +1413,7 @@
 				const today = new Date().toISOString().split('T')[0];
 				const level = data.severity.level;
 				const color = data.severity.color;
+				const name = getReportName();
 
 				// Build meter blocks
 				let meterHtml = '';
@@ -1365,7 +1426,7 @@
 				}
 
 				// Build the static HTML first
-				card.innerHTML = `<div class="diagnosis-header"><div class="diagnosis-domain">howbadisit.lol</div><div class="diagnosis-subtitle"><div class="diagnosis-title">diagnostic report</div><div class="diagnosis-date">${today}</div></div></div><div class="severity-meter">${meterHtml}<span class="meter-level">level ${level}/6</span></div><div class="severity-label" style="color: ${color}">${data.severity.label}</div><div class="severity-desc">${data.severity.desc}</div><div class="diagnosis-readout">total messages:   <span class="readout-value">${formatNum(data.totalMessages)}${data.isInterview ? ' (est.)' : ''}</span>
+				card.innerHTML = `<div class="diagnosis-header"><div class="diagnosis-domain">howbadisit.lol</div><div class="diagnosis-subtitle"><div class="diagnosis-title">diagnostic report for <span class="report-name">${name}</span></div><div class="diagnosis-assessment">compulsive agent use assessment</div><div class="diagnosis-date">${today}</div></div></div><div class="severity-meter">${meterHtml}<span class="meter-level">level ${level}/6</span></div><div class="severity-label" style="color: ${color}">${data.severity.label}</div><div class="severity-desc">${data.severity.desc}</div><div class="diagnosis-readout">total messages:   <span class="readout-value">${formatNum(data.totalMessages)}${data.isInterview ? ' (est.)' : ''}</span>
 total sessions:   <span class="readout-value">${formatNum(data.totalSessions)}</span>${data.totalTokens > 0 ? `
 total tokens:     <span class="readout-value">${formatNum(data.totalTokens)}</span>` : ''}</div>`;
 
@@ -1442,7 +1503,8 @@ total tokens:     <span class="readout-value">${formatNum(data.totalTokens)}</sp
 				const css = document.querySelector('style').innerHTML;
 				const scriptEl = document.querySelector('script');
 				const js = scriptEl.textContent;
-				const dataJson = JSON.stringify(diagnosticRawData);
+				const exportData = Object.assign({}, diagnosticRawData, { reportName: getReportName() });
+				const dataJson = JSON.stringify(exportData);
 
 				const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1497,8 +1559,10 @@ analyzing stats-cache.json...
 			}
 
 			function generateReportHeader() {
+				const name = getReportName();
 				return `═══════════════════════════════════════════════════
-  DIAGNOSTIC REPORT
+  DIAGNOSTIC REPORT for ${name}
+  compulsive agent use assessment
   generated ${new Date().toISOString().split('T')[0]}
 ═══════════════════════════════════════════════════
 
@@ -2003,6 +2067,7 @@ so... how bad is it, really?
 					const resp = await fetch('sample.json');
 					const data = await resp.json();
 					validateData(data);
+					document.getElementById('q-name').value = 'maro.fyi';
 					runDiagnostic(data);
 				} catch (err) {
 					alert('Could not load sample data: ' + err.message);
