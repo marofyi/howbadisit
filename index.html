@@ -5,15 +5,15 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="icon" type="image/png" href="favicon.png" />
 		<link rel="apple-touch-icon" href="favicon.png" />
-		<title>how bad is it? - Claude Code Diagnostic</title>
+		<title>how bad is it?</title>
 		<meta
 			name="description"
-			content="Drop your Claude Code stats and find out how bad it really is."
+			content="Drop your agent usage stats and find out if you probably need a break."
 		/>
 		<meta property="og:title" content="how bad is it?" />
 		<meta
 			property="og:description"
-			content="A diagnostic tool for your Claude Code habits."
+			content="Drop your agent usage stats and find out if you probably need a break."
 		/>
 		<meta property="og:type" content="website" />
 		<meta name="twitter:card" content="summary_large_image" />
@@ -778,6 +778,7 @@
 
 					<div class="interview-question" data-q="6">
 						<label>do you use Computer Agents on your phone?</label>
+						<span class="q-hint">Claude Code Web, Codex Cloud, etc.</span>
 						<select id="q-mobile">
 							<option value="">pick one</option>
 							<option value="never">never</option>
@@ -1681,13 +1682,17 @@ so... how bad is it, really?
 				await delay(1200);
 				await typeText('\n', TYPING_SPEED);
 
-				// Section 3: The Clock
-				await typeText(generateClockText(data), TYPING_SPEED);
-				await delay(400);
+				// Section 3: The Clock (skip for interview mode)
+				if (!data.isInterview) {
+					await typeText(generateClockText(data), TYPING_SPEED);
+					await delay(400);
+				}
 
-				// Section 4: The Spikes
-				await typeText(generateSpikesText(data), TYPING_SPEED);
-				await delay(800);
+				// Section 4: The Spikes (skip for interview mode)
+				if (!data.isInterview) {
+					await typeText(generateSpikesText(data), TYPING_SPEED);
+					await delay(800);
+				}
 
 				// Section 5: The Bill (skip for interview mode - no token data)
 				if (!data.isInterview) {
@@ -1844,11 +1849,17 @@ so... how bad is it, really?
 				const effectiveConversations = Math.round(answers.conversations * mobileMultiplier);
 
 				// Estimate messages per conversation (~10-40 depending on intensity)
-				const msgsPerConv = answers.dailyHours <= 0.5 ? 8
-				: answers.dailyHours <= 2 ? 15
-				: answers.dailyHours <= 5 ? 50
-				: answers.dailyHours <= 8 ? 120
-				: 250;
+				const baseMsgsPerConv = answers.dailyHours <= 0.5 ? 30
+				: answers.dailyHours <= 2 ? 100
+				: answers.dailyHours <= 5 ? 300
+				: answers.dailyHours <= 8 ? 650
+				: 1100;
+			const convIntensity = answers.conversations <= 20 ? 1
+				: answers.conversations <= 75 ? 1.2
+				: answers.conversations <= 200 ? 1.6
+				: answers.conversations <= 500 ? 2
+				: 2.5;
+			const msgsPerConv = Math.round(baseMsgsPerConv * convIntensity);
 				const totalMessages = effectiveConversations * msgsPerConv;
 				const totalSessions = Math.round(effectiveConversations * 1.5);
 

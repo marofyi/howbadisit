@@ -116,11 +116,17 @@ function synthesizeFromInterview(answers) {
 	else if (answers.mobile === 'regularly') mobileMultiplier = 1.5;
 
 	const effectiveConversations = Math.round(answers.conversations * mobileMultiplier);
-	const msgsPerConv = answers.dailyHours <= 0.5 ? 8
-		: answers.dailyHours <= 2 ? 15
-		: answers.dailyHours <= 5 ? 50
-		: answers.dailyHours <= 8 ? 120
-		: 250;
+	const baseMsgsPerConv = answers.dailyHours <= 0.5 ? 30
+		: answers.dailyHours <= 2 ? 100
+		: answers.dailyHours <= 5 ? 300
+		: answers.dailyHours <= 8 ? 650
+		: 1100;
+	const convIntensity = answers.conversations <= 20 ? 1
+		: answers.conversations <= 75 ? 1.2
+		: answers.conversations <= 200 ? 1.6
+		: answers.conversations <= 500 ? 2
+		: 2.5;
+	const msgsPerConv = Math.round(baseMsgsPerConv * convIntensity);
 	const totalMessages = effectiveConversations * msgsPerConv;
 	const totalSessions = Math.round(effectiveConversations * 1.5);
 
@@ -311,51 +317,20 @@ const expectedLevels = [
 ];
 
 // ============================================================
-// EVAL DATASET - interview path
+// INTERVIEW EXHAUSTIVE DISTRIBUTION
 // ============================================================
 
-const interviewTests = [
-	{
-		label: 'Minimal user: 20 convos, 0.5h/day, no weekends, no mobile',
-		answers: { startDate: '2025-10-01', conversations: 20, dailyHours: 0.5, startHour: 9, weekends: 'never', midnight: 'never', mobile: 'never', longestSession: 0.5 },
-		expectedRange: [1, 2],
-	},
-	{
-		label: 'Light user: 75 convos, 2h/day, sometimes weekends',
-		answers: { startDate: '2025-10-01', conversations: 75, dailyHours: 2, startHour: 9, weekends: 'sometimes', midnight: 'never', mobile: 'never', longestSession: 2 },
-		expectedRange: [1, 3],
-	},
-	{
-		label: 'Medium user: 200 convos, 5h/day, regularly weekends',
-		answers: { startDate: '2025-10-01', conversations: 200, dailyHours: 5, startHour: 9, weekends: 'regularly', midnight: 'sometimes', mobile: 'sometimes', longestSession: 5 },
-		expectedRange: [2, 4],
-	},
-	{
-		label: 'Heavy user: 500 convos, 8h/day, always weekends, mobile',
-		answers: { startDate: '2025-10-01', conversations: 500, dailyHours: 8, startHour: 9, weekends: 'always', midnight: 'sometimes', mobile: 'regularly', longestSession: 8 },
-		expectedRange: [3, 5],
-	},
-	{
-		label: 'Power user: 1000 convos, 12h/day, always everything',
-		answers: { startDate: '2025-10-01', conversations: 1000, dailyHours: 12, startHour: 6, weekends: 'always', midnight: 'regularly', mobile: 'regularly', longestSession: 12 },
-		expectedRange: [4, 6],
-	},
-	{
-		label: 'Recent start, low convos: 20 convos, 8h/day, 1 month ago',
-		answers: { startDate: '2026-02-07', conversations: 20, dailyHours: 8, startHour: 9, weekends: 'never', midnight: 'never', mobile: 'never', longestSession: 8 },
-		expectedRange: [1, 3],
-	},
-	{
-		label: 'Recent start, high convos: 500 convos, 12h/day, 1 month ago',
-		answers: { startDate: '2026-02-07', conversations: 500, dailyHours: 12, startHour: 9, weekends: 'always', midnight: 'regularly', mobile: 'regularly', longestSession: 12 },
-		expectedRange: [4, 6],
-	},
-	{
-		label: 'Long-time casual: 75 convos, 0.5h/day, started a year ago',
-		answers: { startDate: '2025-03-07', conversations: 75, dailyHours: 0.5, startHour: 13, weekends: 'never', midnight: 'never', mobile: 'never', longestSession: 0.5 },
-		expectedRange: [1, 2],
-	},
-];
+// All possible answer values from the interview form
+const allConversations = [20, 75, 200, 500, 1000];
+const allDailyHours = [0.5, 2, 5, 8, 12];
+const allWeekends = ['never', 'sometimes', 'regularly', 'always'];
+const allMobile = ['never', 'rarely', 'sometimes', 'regularly'];
+
+// Fixed values for dimensions that don't affect severity much
+const fixedStart = '2025-10-01';
+const fixedStartHour = 9;
+const fixedMidnight = 'sometimes';
+const fixedLongest = 5;
 
 // ============================================================
 // RUN EVAL
@@ -388,28 +363,118 @@ console.log(`\nResults: ${scPass} passed, ${scFail} failed out of ${statsCacheTe
 console.log(`Level distribution: ${JSON.stringify(levelDistribution)}`);
 
 console.log('\n' + '='.repeat(70));
-console.log('INTERVIEW PATH EVAL');
+console.log('INTERVIEW EXHAUSTIVE DISTRIBUTION');
 console.log('='.repeat(70));
 
-let ivPass = 0, ivFail = 0;
+// Run every combination of conversations x dailyHours x weekends x mobile
+// Average over 5 runs per combo to smooth randomness
+const RUNS_PER_COMBO = 5;
+const interviewDist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+const comboResults = [];
+let totalCombos = 0;
 
-interviewTests.forEach((test) => {
-	const rawData = synthesizeFromInterview(test.answers);
-	const result = analyzeData(rawData);
-	const level = result.severity.level;
-	const msgsPerDay = result.msgsPerActiveDay;
-	const [lo, hi] = test.expectedRange;
-	const ok = level >= lo && level <= hi;
+for (const convos of allConversations) {
+	for (const hours of allDailyHours) {
+		for (const weekends of allWeekends) {
+			for (const mobile of allMobile) {
+				let levelSum = 0;
+				let msgsPerDaySum = 0;
+				const levelCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
-	const status = ok ? 'PASS' : 'FAIL';
-	if (!ok) ivFail++;
-	else ivPass++;
+				for (let r = 0; r < RUNS_PER_COMBO; r++) {
+					const raw = synthesizeFromInterview({
+						startDate: fixedStart,
+						conversations: convos,
+						dailyHours: hours,
+						startHour: fixedStartHour,
+						weekends,
+						midnight: fixedMidnight,
+						mobile,
+						longestSession: fixedLongest,
+					});
+					const result = analyzeData(raw);
+					levelSum += result.severity.level;
+					msgsPerDaySum += result.msgsPerActiveDay;
+					levelCounts[result.severity.level]++;
+				}
 
-	console.log(`  ${status}: ${test.label}`);
-	console.log(`    totalMsgs=${result.totalMessages}, activeDays=${result.activeDays}, msgsPerDay=${msgsPerDay} -> L${level} (${result.severity.label}) [expected L${lo}-L${hi}]`);
-});
+				const avgLevel = levelSum / RUNS_PER_COMBO;
+				const avgMsgsPerDay = Math.round(msgsPerDaySum / RUNS_PER_COMBO);
+				const modalLevel = parseInt(Object.entries(levelCounts).sort((a, b) => b[1] - a[1])[0][0]);
+				interviewDist[modalLevel]++;
+				totalCombos++;
 
-console.log(`\nResults: ${ivPass} passed, ${ivFail} failed out of ${interviewTests.length}`);
+				comboResults.push({
+					convos, hours, weekends, mobile,
+					avgLevel: avgLevel.toFixed(1),
+					modalLevel,
+					avgMsgsPerDay,
+				});
+			}
+		}
+	}
+}
+
+// Print distribution chart
+console.log(`\nTotal combinations: ${totalCombos} (each run ${RUNS_PER_COMBO}x)\n`);
+
+const labels = {
+	1: 'Casual User  ',
+	2: 'Regular      ',
+	3: 'Power User   ',
+	4: 'Enthusiast   ',
+	5: 'Codependent  ',
+	6: 'Terminal Case ',
+};
+
+const maxCount = Math.max(...Object.values(interviewDist));
+const barScale = 40 / maxCount;
+
+console.log('  Level distribution across all interview answer combinations:\n');
+for (let l = 1; l <= 6; l++) {
+	const count = interviewDist[l];
+	const pct = ((count / totalCombos) * 100).toFixed(1);
+	const bar = '\u2588'.repeat(Math.round(count * barScale));
+	console.log(`  L${l} ${labels[l]} ${bar} ${count} (${pct}%)`);
+}
+
+// Show the "middle" answers that land at L1 (the bug the user hit)
+console.log('\n' + '-'.repeat(70));
+console.log('MIDDLE-GROUND COMBOS THAT LAND AT L1 (potential problem):');
+console.log('-'.repeat(70));
+
+const middleCombos = comboResults.filter(c =>
+	c.convos >= 75 && c.hours >= 2 && c.modalLevel <= 1
+);
+
+if (middleCombos.length === 0) {
+	console.log('  None found - all middle-ground combos classify above L1');
+} else {
+	middleCombos.forEach(c => {
+		console.log(`  convos=${c.convos} hours=${c.hours} weekends=${c.weekends} mobile=${c.mobile} -> L${c.modalLevel} (avg ${c.avgMsgsPerDay} msgs/day)`);
+	});
+}
+
+console.log('\n' + '-'.repeat(70));
+console.log('FULL GRID: conversations x dailyHours -> modal level');
+console.log('-'.repeat(70));
+
+// Header
+const hdrHours = allDailyHours.map(h => `${h}h`.padStart(6)).join('');
+console.log(`  convos  ${hdrHours}`);
+console.log('  ' + '-'.repeat(38));
+
+for (const convos of allConversations) {
+	const row = allDailyHours.map(hours => {
+		// Get most common level across all weekend/mobile combos
+		const matching = comboResults.filter(c => c.convos === convos && c.hours === hours);
+		const levelBuckets = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+		matching.forEach(c => levelBuckets[c.modalLevel]++);
+		const dominant = parseInt(Object.entries(levelBuckets).sort((a, b) => b[1] - a[1])[0][0]);
+		return `L${dominant}`.padStart(6);
+	}).join('');
+	console.log(`  ${String(convos).padStart(5)}  ${row}`);
+}
 
 // ============================================================
 // BOUNDARY DEEP-CHECK
@@ -444,8 +509,8 @@ console.log(`Direct boundary check: ${bPass} passed, ${bFail} failed out of ${bo
 // SUMMARY
 // ============================================================
 
-const totalPass = scPass + ivPass + bPass;
-const totalFail = scFail + ivFail + bFail;
+const totalPass = scPass + bPass;
+const totalFail = scFail + bFail;
 const total = totalPass + totalFail;
 
 console.log('\n' + '='.repeat(70));
