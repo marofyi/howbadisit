@@ -1401,6 +1401,7 @@
 				const nameInput = document.getElementById('q-name');
 				const val = nameInput ? nameInput.value.trim() : '';
 				if (val) return val;
+				if (diagnosticRawData && diagnosticRawData.reportName) return diagnosticRawData.reportName;
 				if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA.reportName) return EMBEDDED_DATA.reportName;
 				return 'anonymous';
 			}
@@ -2067,6 +2068,7 @@ so... how bad is it, really?
 					const resp = await fetch('sample.json');
 					const data = await resp.json();
 					validateData(data);
+					data.reportName = 'maro.fyi';
 					document.getElementById('q-name').value = 'maro.fyi';
 					runDiagnostic(data);
 				} catch (err) {
