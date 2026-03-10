@@ -2081,6 +2081,10 @@ so... how bad is it, really?
 				outputEl.innerHTML = '';
 				document.getElementById('landing').style.display = 'flex';
 				cursorEl = null;
+				skipRequested = false;
+				isTyping = false;
+				autoScrollEnabled = true;
+				userScrolledUp = false;
 				// Reset interview visibility
 				document.querySelectorAll('.interview-question').forEach(q => q.classList.remove('visible'));
 				document.getElementById('interview-submit').classList.remove('visible');
@@ -2090,6 +2094,15 @@ so... how bad is it, really?
 			}
 
 			// ─── Event Listeners ───────────────────────────
+
+			// Skip animation when tab loses visibility to avoid
+			// browser timer throttling (setTimeout clamped to ~1s
+			// in background tabs) which makes the diagnostic appear hung
+			document.addEventListener('visibilitychange', () => {
+				if (document.hidden && isTyping) {
+					skipRequested = true;
+				}
+			});
 
 			document.addEventListener('DOMContentLoaded', () => {
 
@@ -2271,6 +2284,7 @@ so... how bad is it, really?
 						userScrolledUp = false;
 					}
 				});
+
 			});
 		</script>
 	</body>
