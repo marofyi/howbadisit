@@ -1427,7 +1427,7 @@
 				}
 
 				// Build the static HTML first
-				card.innerHTML = `<div class="diagnosis-header"><div class="diagnosis-domain">howbadisit.lol</div><div class="diagnosis-subtitle"><div class="diagnosis-title">diagnostic report for <span class="report-name">${name}</span></div><div class="diagnosis-assessment">compulsive agent use assessment</div><div class="diagnosis-date">${today}</div></div></div><div class="severity-meter">${meterHtml}<span class="meter-level">level ${level}/6</span></div><div class="severity-label" style="color: ${color}">${data.severity.label}</div><div class="severity-desc">${data.severity.desc}</div><div class="diagnosis-readout">total messages:   <span class="readout-value">${formatNum(data.totalMessages)}${data.isInterview ? ' (est.)' : ''}</span>
+				card.innerHTML = `<div class="diagnosis-header"><div class="diagnosis-domain">howbadisit.lol</div><div class="diagnosis-subtitle"><div class="diagnosis-title">diagnostic report for <span class="report-name">${escapeHtml(name)}</span></div><div class="diagnosis-assessment">compulsive agent use assessment</div><div class="diagnosis-date">${today}</div></div></div><div class="severity-meter">${meterHtml}<span class="meter-level">level ${level}/6</span></div><div class="severity-label" style="color: ${color}">${data.severity.label}</div><div class="severity-desc">${data.severity.desc}</div><div class="diagnosis-readout">total messages:   <span class="readout-value">${formatNum(data.totalMessages)}${data.isInterview ? ' (est.)' : ''}</span>
 total sessions:   <span class="readout-value">${formatNum(data.totalSessions)}</span>${data.totalTokens > 0 ? `
 total tokens:     <span class="readout-value">${formatNum(data.totalTokens)}</span>` : ''}</div>`;
 
